@@ -1,1138 +1,343 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Options Pricer</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --gold:      #C9A84C;
-  --gold-dim:  #8B6E2A;
-  --ink:       #1A1814;
-  --paper:     #F5F2EA;
-  --paper2:    #EDE9DC;
-  --border:    rgba(180,155,90,0.28);
-  --muted:     #7A7260;
-  --call:      #2D5A3F;
-  --put:       #7A1A1A;
-  --mc:        #1A3560;
-  --euler:     #6B3A1A;
-  --milst:     #1A5560;
-  --ml:        #4A1A6B;
-}
-
-body {
-  font-family: 'DM Mono', monospace;
-  background: #E8E4D8;
-  color: var(--ink);
-  min-height: 100vh;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 0;
-}
-
-.app {
-  width: 100%;
-  min-height: 100vh;
-  background: var(--paper);
-  overflow: hidden;
-}
-
-/* HEADER */
-.header {
-  background: var(--paper);
-  padding: 1.6rem 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border);
-}
-.logo { font-family: 'Fraunces', serif; font-size: 26px; font-weight: 300; letter-spacing: -0.01em; color: var(--ink); }
-.logo em { color: var(--gold); font-style: italic; }
-.header-badge { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold-dim); border: 1px solid var(--border); padding: 5px 13px; border-radius: 4px; }
-
-/* TICKER BAR */
-.ticker-bar {
-  background: var(--paper2);
-  border-bottom: 1px solid var(--border);
-  padding: 1rem 2rem;
-  display: flex;
-  align-items: flex-end;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-}
-.tf { display: flex; flex-direction: column; gap: 5px; }
-.tf label { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold-dim); }
-.ticker-input {
-  font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 500;
-  color: var(--ink); background: var(--paper); border: 1px solid var(--border);
-  border-radius: 7px; padding: 8px 14px; width: 110px;
-  text-transform: uppercase; outline: none; transition: border-color 0.2s;
-}
-.ticker-input:focus { border-color: var(--gold); }
-.fetch-btn {
-  font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.12em;
-  text-transform: uppercase; font-weight: 500; background: var(--gold); color: #1A1814;
-  border: none; border-radius: 7px; padding: 9px 20px; cursor: pointer;
-  transition: opacity 0.2s; white-space: nowrap; height: 37px;
-}
-.fetch-btn:hover { opacity: 0.85; }
-.fetch-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.ticker-stat { display: flex; flex-direction: column; gap: 3px; }
-.ticker-stat .ts-lbl { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold-dim); }
-.ticker-stat .ts-val { font-family: 'Fraunces', serif; font-size: 19px; font-weight: 300; color: var(--gold); }
-.ticker-stat .ts-val.ink { color: var(--ink); }
-.t-status {
-  font-size: 10px; color: var(--muted); border: 1px solid var(--border);
-  border-radius: 7px; padding: 7px 12px; align-self: flex-end;
-  background: var(--paper); line-height: 1.4; max-width: 260px;
-}
-.t-status.ok  { color: var(--call);  border-color: rgba(45,90,63,0.3);  background: rgba(45,90,63,0.04); }
-.t-status.err { color: var(--put);   border-color: rgba(122,26,26,0.3); background: rgba(122,26,26,0.04); }
-
-/* TABS */
-.tabs {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  border-bottom: 1px solid var(--border);
-  background: var(--paper2);
-}
-.tab {
-  font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
-  padding: 1.1rem 1rem; cursor: pointer; background: none; border: none;
-  border-right: 1px solid var(--border); border-bottom: 3px solid transparent;
-  transition: color 0.18s, background 0.18s, border-color 0.18s;
-  line-height: 1.4; text-align: center;
-}
-.tab:last-child { border-right: none; }
-.tab:hover:not(.active) { background: rgba(201,168,76,0.05); color: var(--ink); }
-.tab.active { color: var(--gold); background: var(--paper); border-bottom-color: var(--gold); }
-
-/* PANELS */
-.panel { display: none; padding: 2rem; }
-.panel.active { display: block; }
-
-/* LAYOUT */
-.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
-
-/* SECTION LABEL */
-.slbl { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold-dim); margin-bottom: 1rem; }
-
-/* SLIDERS */
-.field { margin-bottom: 1rem; }
-.field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.02em; }
-.field .val  { float: right; font-size: 13px; font-weight: 500; color: var(--gold); }
-input[type=range] { width: 100%; accent-color: var(--gold); cursor: pointer; }
-
-/* CARDS */
-.rcard { border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.3rem; background: var(--paper2); margin-bottom: 0.75rem; }
-.rcard .rlbl { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
-.rcard .rval { font-family: 'Fraunces', serif; font-size: 32px; font-weight: 300; letter-spacing: -0.02em; }
-.rcard .rsub { font-size: 10px; color: var(--muted); margin-top: 3px; }
-
-.c-call  { color: var(--call); }
-.c-put   { color: var(--put); }
-.c-mc    { color: var(--mc); }
-.c-euler { color: var(--euler); }
-.c-milst { color: var(--milst); }
-.c-ml    { color: var(--ml); }
-.c-bs    { color: #555; }
-.c-gold  { color: var(--gold); }
-
-/* TAGS */
-.tag { display: inline-block; font-size: 9px; letter-spacing: 0.1em; padding: 2px 8px; border-radius: 4px; margin-right: 3px; margin-bottom: 2px; }
-.tg-call  { background:rgba(45,90,63,0.10);   color:var(--call);  border:1px solid rgba(45,90,63,0.25); }
-.tg-put   { background:rgba(122,26,26,0.08);  color:var(--put);   border:1px solid rgba(122,26,26,0.2); }
-.tg-mc    { background:rgba(26,53,96,0.08);   color:var(--mc);    border:1px solid rgba(26,53,96,0.2); }
-.tg-euler { background:rgba(107,58,26,0.08);  color:var(--euler); border:1px solid rgba(107,58,26,0.2); }
-.tg-milst { background:rgba(26,85,96,0.08);   color:var(--milst); border:1px solid rgba(26,85,96,0.2); }
-.tg-ml    { background:rgba(74,26,107,0.08);  color:var(--ml);    border:1px solid rgba(74,26,107,0.2); }
-.tg-bs    { background:rgba(80,80,80,0.07);   color:#555;         border:1px solid rgba(80,80,80,0.18); }
-
-hr { border: none; border-top: 1px solid var(--border); margin: 1.75rem 0; }
-
-.run-btn {
-  width: 100%; background: var(--gold); color: #1A1814;
-  font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.14em;
-  text-transform: uppercase; border: none; border-radius: 8px; padding: 13px;
-  cursor: pointer; font-weight: 500; transition: opacity 0.2s; margin-top: 0.5rem;
-}
-.run-btn:hover { opacity: 0.85; }
-.run-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-.chart-wrap      { position: relative; width: 100%; height: 240px; }
-.chart-wrap-tall { position: relative; width: 100%; height: 280px; }
-
-.vol-box {
-  background: rgba(201,168,76,0.07); border: 1px solid rgba(201,168,76,0.22);
-  border-radius: 8px; padding: 9px 13px; font-size: 10px; color: var(--muted);
-  margin-bottom: 1rem; line-height: 1.6;
-}
-.vol-box strong { color: var(--gold); }
-
-.info-line { font-size: 10px; color: var(--muted); line-height: 1.7; border-left: 2px solid var(--border); padding-left: 1rem; margin-top: 1rem; }
-
-.legend { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 0.75rem; }
-.leg    { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); }
-.ldot   { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
-
-.tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
-.tbl th { text-align: left; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold-dim); padding: 7px 9px; border-bottom: 1px solid var(--border); font-weight: 400; }
-.tbl td { padding: 7px 9px; border-bottom: 1px solid rgba(180,155,90,0.1); }
-.tbl tr:last-child td { border-bottom: none; }
-.tbl .num { font-family: 'DM Mono', monospace; font-size: 11px; }
-
-.spin {
-  display: inline-block; width: 13px; height: 13px;
-  border: 2px solid rgba(26,24,20,0.2); border-top-color: #1A1814;
-  border-radius: 50%; animation: sp 0.7s linear infinite;
-  vertical-align: middle; margin-right: 6px;
-}
-@keyframes sp { to { transform: rotate(360deg); } }
-
-/* ML specific */
-.import-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
-.import-bar-lbl { font-size: 10px; color: var(--muted); width: 32px; flex-shrink: 0; }
-.import-bar-track { flex: 1; height: 6px; background: var(--paper); border-radius: 3px; overflow: hidden; border: 1px solid var(--border); }
-.import-bar-fill  { height: 100%; background: var(--gold); border-radius: 3px; transition: width 0.5s ease; }
-.import-bar-pct   { font-size: 10px; color: var(--gold); width: 36px; text-align: right; }
-
-.locked-box {
-  color: var(--muted); font-size: 11px; border: 1px solid var(--border);
-  border-radius: 8px; padding: 1rem; margin-bottom: 1rem; background: var(--paper2);
-}
-</style>
-</head>
-<body>
-<div class="app">
-
-  <!-- HEADER -->
-  <div class="header">
-    <div class="logo">Options<em>Pricing</em></div>
-    
-  </div>
-
-  <!-- TICKER BAR -->
-  <div class="ticker-bar">
-    <div class="tf">
-      <label>Ticker Yahoo Finance</label>
-      <input class="ticker-input" type="text" id="tickerInput" value="AAPL" placeholder="ex: AAPL">
-    </div>
-    <button class="fetch-btn" id="fetchBtn" onclick="fetchTicker()">&#9654; Charger</button>
-
-    <div class="ticker-stat" id="priceBox" style="display:none">
-      <div class="ts-lbl">Prix S₀</div>
-      <div class="ts-val ink" id="priceVal">—</div>
-    </div>
-
-    <div class="ticker-stat" id="volBox" style="display:none">
-      <div class="ts-lbl">Vol hist</div>
-      <div class="ts-val" id="volVal">—</div>
-    </div>
-
-    <div class="t-status" id="tStatus">Entrez un ticker et cliquez sur Charger</div>
-  </div>
-
-  <!-- TABS -->
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('bs',this)">Black-Scholes</button>
-    <button class="tab" onclick="switchTab('mc',this)">Monte Carlo</button>
-    <button class="tab" onclick="switchTab('cv',this)">Convergence</button>
-    <button class="tab" onclick="switchTab('ml',this)">ML Pricer</button>
-  </div>
-
-  <!-- ══════════════════════════════════════════
-       PANEL — BLACK-SCHOLES
-  ══════════════════════════════════════════ -->
-  <div class="panel active" id="panel-bs">
-    <div class="g2">
-      <!-- LEFT -->
-      <div>
-        <div class="slbl">Paramètres du modèle</div>
-
-        
-        <div class="field">
-          <label>Prix sous-jacent S₀ <span class="val" id="bs-s0v">100</span></label>
-          <input type="range" id="bs-s0" min="1" max="500" value="100" step="1"
-            oninput="document.getElementById('bs-s0v').textContent=this.value; debouncedBS()">
-        </div>
-        <div class="field">
-          <label>Strike K <span class="val" id="bs-kv">100</span></label>
-          <input type="range" id="bs-k" min="1" max="500" value="100" step="1"
-            oninput="document.getElementById('bs-kv').textContent=this.value; debouncedBS()">
-        </div>
-        <div class="field">
-          <label>Maturité T (années) <span class="val" id="bs-tv">1.0</span></label>
-          <input type="range" id="bs-t" min="0.1" max="3" value="1" step="0.1"
-            oninput="document.getElementById('bs-tv').textContent=parseFloat(this.value).toFixed(1); debouncedBS()">
-        </div>
-        <div class="field">
-          <label>Taux sans risque r <span class="val" id="bs-rv">5%</span></label>
-          <input type="range" id="bs-r" min="0" max="15" value="5" step="0.5"
-            oninput="document.getElementById('bs-rv').textContent=this.value+'%'; debouncedBS()">
-        </div>
-      </div>
-
-      <!-- RIGHT -->
-      <div>
-        <div class="slbl">Prix de l'option</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
-          <div class="rcard">
-            <div class="rlbl"><span class="tag tg-call">CALL</span></div>
-            <div class="rval c-call" id="bs-call">—</div>
-            <div class="rsub">Black-Scholes exact</div>
-          </div>
-          <div class="rcard">
-            <div class="rlbl"><span class="tag tg-put">PUT</span></div>
-            <div class="rval c-put" id="bs-put">—</div>
-            <div class="rsub">Black-Scholes exact</div>
-          </div>
-        </div>
-        <div class="info-line" id="bs-mono">Chargez un ticker et ajustez les paramètres.</div>
-      </div>
-    </div>
-
-    <hr>
-    <div class="slbl">Profil de Payoff à l'échéance</div>
-    <div class="chart-wrap">
-      <canvas id="payoffChart"></canvas>
-    </div>
-    <div class="legend">
-      <div class="leg"><div class="ldot" style="background:#2D5A3F"></div>Payoff Call</div>
-      <div class="leg"><div class="ldot" style="background:#7A1A1A"></div>Payoff Put</div>
-    </div>
-  </div><!-- end panel-bs -->
-
-  <!-- ══════════════════════════════════════════
-       PANEL — MONTE CARLO
-  ══════════════════════════════════════════ -->
-  <div class="panel" id="panel-mc">
-    <div class="g2">
-      <!-- LEFT -->
-      <div>
-        <div class="slbl">Paramètres Monte Carlo</div>
-
-        
-
-        <div class="field">
-          <label>S₀ <span class="val" id="mc-s0v">100</span></label>
-          <input type="range" id="mc-s0" min="1" max="500" value="100" step="1"
-            oninput="document.getElementById('mc-s0v').textContent=this.value">
-        </div>
-        <div class="field">
-          <label>Strike K <span class="val" id="mc-kv">100</span></label>
-          <input type="range" id="mc-k" min="1" max="500" value="100" step="1"
-            oninput="document.getElementById('mc-kv').textContent=this.value">
-        </div>
-        <div class="field">
-          <label>Maturité T <span class="val" id="mc-tv">1.0</span></label>
-          <input type="range" id="mc-t" min="0.1" max="3" value="1" step="0.1"
-            oninput="document.getElementById('mc-tv').textContent=parseFloat(this.value).toFixed(1)">
-        </div>
-        <div class="field">
-          <label>Taux r <span class="val" id="mc-rv">5%</span></label>
-          <input type="range" id="mc-r" min="0" max="15" value="5" step="0.5"
-            oninput="document.getElementById('mc-rv').textContent=this.value+'%'">
-        </div>
-        <div class="field">
-          <label>Simulations N <span class="val" id="mc-nv">10 000</span></label>
-          <input type="range" id="mc-n" min="1000" max="50000" value="10000" step="1000"
-            oninput="document.getElementById('mc-nv').textContent=parseInt(this.value).toLocaleString('fr')">
-        </div>
-        <button class="run-btn" id="mc-btn" onclick="runMC()">&#9654; Lancer la simulation</button>
-      </div>
-
-      <!-- RIGHT -->
-      <div>
-        <div class="slbl">Résultats</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
-          <div class="rcard">
-            <div class="rlbl"><span class="tag tg-mc">Monte Carlo</span> <span class="tag tg-call">Call</span></div>
-            <div class="rval c-mc" id="mc-call">—</div>
-            <div class="rsub">prix actualisé moyen</div>
-          </div>
-          <div class="rcard">
-            <div class="rlbl"><span class="tag tg-mc">Monte Carlo</span> <span class="tag tg-put">Put</span></div>
-            <div class="rval c-put" id="mc-put">—</div>
-            <div class="rsub">prix actualisé moyen</div>
-          </div>
-        </div>
-
-        <div class="rcard">
-          <div class="rlbl">Référence Black-Scholes</div>
-          <div style="display:flex;gap:1.5rem;margin-top:5px;">
-            <div>
-              <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">BS Call</div>
-              <div style="font-family:'Fraunces',serif;font-size:20px;font-weight:300;color:var(--call)" id="mc-bs-call">—</div>
-            </div>
-            <div>
-              <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">BS Put</div>
-              <div style="font-family:'Fraunces',serif;font-size:20px;font-weight:300;color:var(--put)" id="mc-bs-put">—</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="rcard">
-          <div class="rlbl">Erreur vs Black-Scholes</div>
-          <div style="display:flex;gap:1.5rem;margin-top:5px;">
-            <div>
-              <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">Call Δ</div>
-              <div style="font-size:20px;font-weight:500;color:var(--gold)" id="mc-err-c">—</div>
-            </div>
-            <div>
-              <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">Put Δ</div>
-              <div style="font-size:20px;font-weight:500;color:var(--gold)" id="mc-err-p">—</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div><!-- end g2 -->
-
-    <hr>
-    <div class="slbl">Distribution des prix terminaux S<sub>T</sub></div>
-    <div class="chart-wrap">
-      <canvas id="mcHistChart"></canvas>
-    </div>
-  </div><!-- end panel-mc -->
-
-  <!-- ══════════════════════════════════════════
-       PANEL — CONVERGENCE
-  ══════════════════════════════════════════ -->
-  <div class="panel" id="panel-cv">
-    <div class="slbl">Convergence faible — Euler / Milstein / Monte Carlo vs Black-Scholes</div>
-    
-
-    <div class="g3" style="margin-bottom:1.25rem;">
-      <div class="field">
-        <label>S₀ <span class="val" id="cv-s0v">100</span></label>
-        <input type="range" id="cv-s0" min="1" max="500" value="100" step="1"
-          oninput="document.getElementById('cv-s0v').textContent=this.value">
-      </div>
-      <div class="field">
-        <label>Strike K <span class="val" id="cv-kv">100</span></label>
-        <input type="range" id="cv-k" min="1" max="500" value="100" step="1"
-          oninput="document.getElementById('cv-kv').textContent=this.value">
-      </div>
-      <div class="field">
-        <label>T (années) <span class="val" id="cv-tv">1.0</span></label>
-        <input type="range" id="cv-t" min="0.1" max="2" value="1" step="0.1"
-          oninput="document.getElementById('cv-tv').textContent=parseFloat(this.value).toFixed(1)">
-      </div>
-    </div>
-
-    
-
-    <button class="run-btn" id="cv-btn" onclick="runConv()" style="margin-bottom:1.75rem;">
-      &#9654; Calculer la convergence Faible
-    </button>
-
-    <div class="slbl">Prix du Call par méthode et par N</div>
-    <div style="overflow-x:auto;margin-bottom:1.5rem;">
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th>N</th>
-            <th><span class="tag tg-bs">BS Exact</span></th>
-            <th><span class="tag tg-mc">Monte Carlo</span></th>
-            <th><span class="tag tg-euler">Euler</span></th>
-            <th><span class="tag tg-milst">Milstein</span></th>
-            <th>Err MC</th>
-            <th>Err Euler</th>
-            <th>Err Milstein</th>
-          </tr>
-        </thead>
-        <tbody id="cv-tbody-call">
-          <tr><td colspan="8" style="color:var(--muted);text-align:center;padding:1.5rem;">Lancez le calcul pour afficher les résultats</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="slbl">Prix du Put par méthode et par N</div>
-    <div style="overflow-x:auto;margin-bottom:1.75rem;">
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th>N</th>
-            <th><span class="tag tg-bs">BS Exact</span></th>
-            <th><span class="tag tg-mc">Monte Carlo</span></th>
-            <th><span class="tag tg-euler">Euler</span></th>
-            <th><span class="tag tg-milst">Milstein</span></th>
-            <th>Err MC</th>
-            <th>Err Euler</th>
-            <th>Err Milstein</th>
-          </tr>
-        </thead>
-        <tbody id="cv-tbody-put">
-          <tr><td colspan="8" style="color:var(--muted);text-align:center;padding:1.5rem;">Lancez le calcul pour afficher les résultats</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="slbl">Erreur absolue Call vs N</div>
-    <div class="chart-wrap-tall">
-      <canvas id="convChart"></canvas>
-    </div>
-    <div class="legend" style="margin-top:0.75rem;">
-      <div class="leg"><div class="ldot" style="background:#5CB88A"></div>Euler</div>
-      <div class="leg"><div class="ldot" style="background:#4A9AB0"></div>Milstein</div>
-      <div class="leg"><div class="ldot" style="background:#6090D0"></div>Monte Carlo</div>
-      <div class="leg"><div class="ldot" style="background:#C9A84C"></div>BS exact (ref = 0)</div>
-    </div>
-    <hr>
-    <div class="slbl">Convergence Forte — Euler vs Milstein (erreur trajectorielle)</div>
-    
-    <button class="run-btn" id="cvf-btn" onclick="runConvForte()" style="margin-bottom:1.75rem;">
-      &#9654; Calculer la convergence forte
-    </button>
-
-    <div class="chart-wrap-tall">
-      <canvas id="convForteChart"></canvas>
-    </div>
-    <div class="legend" style="margin-top:0.75rem;">
-      <div class="leg"><div class="ldot" style="background:#5CB88A"></div>Euler — O(√Δt)</div>
-      <div class="leg"><div class="ldot" style="background:#4A9AB0"></div>Milstein — O(Δt)</div>
-    </div>
-  </div><!-- end panel-cv -->
-
-  <!-- ══════════════════════════════════════════
-       PANEL — ML PRICER
-  ══════════════════════════════════════════ -->
-  <div class="panel" id="panel-ml">
-    <div class="slbl">ML Pricer — Gradient Boosting Regressor</div>
-    <!-- TRAINING -->
-    <div class="g2" style="margin-bottom:1.5rem;">
-      <div>
-        <div class="slbl">Entraînement</div>
-        <div class="rcard">
-          <div class="rlbl">Paramètres du modèle</div>
-          <div style="margin-top:8px;display:flex;flex-direction:column;gap:7px;">
-            <div style="display:flex;justify-content:space-between;font-size:11px;">
-              <span style="color:var(--muted)">n_estimators</span><span style="font-weight:500">200</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:11px;">
-              <span style="color:var(--muted)">learning_rate</span><span style="font-weight:500">0.1</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:11px;">
-              <span style="color:var(--muted)">max_depth</span><span style="font-weight:500">3</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:11px;">
-              <span style="color:var(--muted)">test_size</span><span style="font-weight:500">20%</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="field" style="margin-top:0.75rem;">
-          <label>Taille du dataset <span class="val" id="ml-nv">3 000</span></label>
-          <input type="range" id="ml-n" min="500" max="8000" value="3000" step="500"
-            oninput="document.getElementById('ml-nv').textContent=parseInt(this.value).toLocaleString('fr')">
-        </div>
-
-        <button class="run-btn" id="ml-train-btn" onclick="trainML()">&#9654; Entraîner le modèle</button>
-      </div>
-
-      <div>
-        <div class="slbl">Résultats d'entraînement</div>
-        
-        <div class="rcard">
-          <div class="rlbl">Feature Importances</div>
-          <div id="ml-importances" style="margin-top:8px;">
-            <div style="color:var(--muted);font-size:11px;">Entraînez d'abord le modèle</div>
-          </div>
-        </div>
-        <div id="ml-train-ok" style="display:none;margin-top:0.5rem;font-size:10px;color:var(--call);border:1px solid rgba(45,90,63,0.3);border-radius:6px;padding:7px 10px;background:rgba(45,90,63,0.04);">
-          ✓ Modèle entraîné — prédictions disponibles
-        </div>
-      </div>
-    </div>
-
-    <!-- IMPORTANCE CHART -->
-    <div id="ml-chart-section" style="display:none;">
-      <hr>
-      <div class="slbl">Importance des features</div>
-      <div style="position:relative;width:100%;height:200px;">
-        <canvas id="mlImportChart"></canvas>
-      </div>
-    </div>
-
-    <hr>
-
-    <!-- PREDICTION -->
-
-    <div class="locked-box" id="ml-locked">
-       Entraînez d'abord le modèle pour activer les prédictions.
-    </div>
-
-    <div id="ml-predict-section" style="display:none;">
-      <div class="g2">
-        <div>
-          
-          <div class="field">
-            <label>S₀ <span class="val" id="ml-s0v">100</span></label>
-            <input type="range" id="ml-s0" min="1" max="500" value="100" step="1"
-              oninput="document.getElementById('ml-s0v').textContent=this.value">
-          </div>
-          <div class="field">
-            <label>Strike K <span class="val" id="ml-kv">100</span></label>
-            <input type="range" id="ml-k" min="1" max="500" value="100" step="1"
-              oninput="document.getElementById('ml-kv').textContent=this.value">
-          </div>
-          <div class="field">
-            <label>Maturité T <span class="val" id="ml-tv">1.0</span></label>
-            <input type="range" id="ml-t" min="0.1" max="2" value="1" step="0.1"
-              oninput="document.getElementById('ml-tv').textContent=parseFloat(this.value).toFixed(1)">
-          </div>
-          <div class="field">
-            <label>Taux r <span class="val" id="ml-rv">5%</span></label>
-            <input type="range" id="ml-r" min="0" max="15" value="5" step="0.5"
-              oninput="document.getElementById('ml-rv').textContent=this.value+'%'">
-          </div>
-
-          <button class="run-btn" id="ml-pred-btn" onclick="predictML()">&#9654; Prédire le prix</button>
-        </div>
-
-        <div>
-          <div class="slbl">Résultat de la prédiction</div>
-          <div class="rcard">
-            <div class="rlbl"><span class="tag tg-ml">ML · Gradient Boosting</span> <span class="tag tg-call">Call</span></div>
-            <div class="rval c-ml" id="ml-pred-price">—</div>
-            <div class="rsub">prix prédit par le modèle</div>
-          </div>
-          <div class="rcard">
-            <div class="rlbl">Référence Black-Scholes</div>
-            <div class="rval c-call" id="ml-bs-price">—</div>
-            <div class="rsub">prix exact BS (call)</div>
-          </div>
-          <div class="rcard">
-            <div class="rlbl"><span class="tag tg-ml">ML · Gradient Boosting</span> <span class="tag tg-put">Put</span></div>
-            <div class="rval c-put" id="ml-pred-put">—</div>
-            <div class="rsub">prix prédit par le modèle</div>
-          </div>
-          <div class="rcard">
-            <div class="rlbl">Référence Black-Scholes PUT</div>
-            <div class="rval c-put" id="ml-bs-put">—</div>
-            <div class="rsub">prix exact BS (put)</div>
-          </div>
-          <div class="rcard">
-            <div class="rlbl">Écart ML vs Black-Scholes</div>
-            <div style="display:flex;gap:1.5rem;margin-top:5px;">
-              <div>
-                <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">Err. absolue</div>
-                <div style="font-size:20px;font-weight:500;color:var(--gold)" id="ml-err-abs">—</div>
-              </div>
-              <div>
-                <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">Err. %</div>
-                <div style="font-size:20px;font-weight:500;color:var(--gold)" id="ml-err-pct">—</div>
-              </div>
-            </div>
-          </div>
-          <div class="rcard">
-            <div class="rlbl">Écart ML vs BS — Put</div>
-            <div style="display:flex;gap:1.5rem;margin-top:5px;">
-              <div>
-                <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">Err. absolue</div>
-                <div style="font-size:20px;font-weight:500;color:var(--gold)" id="ml-err-abs-put">—</div>
-              </div>
-              <div>
-                <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">Err. %</div>
-                <div style="font-size:20px;font-weight:500;color:var(--gold)" id="ml-err-pct-put">—</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- end g2 -->
-    </div><!-- end ml-predict-section -->
-  </div><!-- end panel-ml -->
-
-</div><!-- end .app -->
-
-<script>
-// ════════════════════════════════════════════════
-// STATE
-// ════════════════════════════════════════════════
-let sigma   = null;
-let s0      = null;
-let mlReady = false;
-
-// Chart instances
-let payoffChart   = null;
-let mcHistChart   = null;
-let convChart     = null;
-let mlImportChart = null;
-
-// Debounce for BS sliders
-let bsTimer = null;
-function debouncedBS() {
-  clearTimeout(bsTimer);
-  bsTimer = setTimeout(calcBS, 180);
-}
-
-// ════════════════════════════════════════════════
-// TAB SWITCH
-// ════════════════════════════════════════════════
-function switchTab(id, el) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('panel-' + id).classList.add('active');
-}
-
-// ════════════════════════════════════════════════
-// TICKER
-// ════════════════════════════════════════════════
-async function fetchTicker() {
-  const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
-  if (!ticker) return;
-
-  const btn    = document.getElementById('fetchBtn');
-  const status = document.getElementById('tStatus');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin"></span>Chargement...';
-  status.textContent = 'Récupération des données...';
-  status.className   = 't-status';
-
-  try {
-    const res  = await fetch(`/api/ticker?ticker=${ticker}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Erreur serveur');
-
-    sigma = data.vol;
-    s0    = data.price;
-
-    document.getElementById('priceVal').textContent    = '$' + data.price.toFixed(2);
-    document.getElementById('volVal').textContent      = data.vol_pct.toFixed(2) + '%';
-    document.getElementById('priceBox').style.display  = 'flex';
-    document.getElementById('volBox').style.display    = 'flex';
-
-    const volHtml = `<strong>σ = ${data.vol_pct.toFixed(2)}%</strong> &nbsp;·&nbsp; Volatilité historique annualisée (252j) de <strong>${ticker}</strong> — ${data.n_days} jours.`;
-    ['bs-vbox','mc-vbox','cv-vbox','ml-vbox'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.innerHTML = volHtml;
-    });
-
-    status.textContent = `✓ ${ticker} chargé `;
-    status.className   = 't-status ok';
-
-    syncSliders(data.price);
-    calcBS();
-
-  } catch(err) {
-    status.textContent = '✗ ' + err.message;
-    status.className   = 't-status err';
-  }
-
-  btn.disabled  = false;
-  btn.innerHTML = '&#9654; Charger';
-}
-
-function syncSliders(price) {
-  const mx  = Math.max(600, Math.ceil(price * 2 / 50) * 50);
-  const atm = Math.round(price / 5) * 5;
-  const p   = Math.round(price);
-  const mn  = Math.max(1, Math.round(price * 0.3));
-
-  [['bs-s0','bs-s0v'],['mc-s0','mc-s0v'],['cv-s0','cv-s0v'],['ml-s0','ml-s0v']].forEach(([id,vid]) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.max = mx; el.value = p;
-    document.getElementById(vid).textContent = p;
-  });
-  [['bs-k','bs-kv'],['mc-k','mc-kv'],['cv-k','cv-kv'],['ml-k','ml-kv']].forEach(([id,vid]) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.max = mx; el.min = mn; el.value = atm;
-    document.getElementById(vid).textContent = atm;
-  });
-}
-
-// ════════════════════════════════════════════════
-// BLACK-SCHOLES
-// ════════════════════════════════════════════════
-async function calcBS() {
-  const sig    = sigma || 0.20;
-  const params = {
-    s0:    parseFloat(document.getElementById('bs-s0').value),
-    k:     parseFloat(document.getElementById('bs-k').value),
-    t:     parseFloat(document.getElementById('bs-t').value),
-    r:     parseFloat(document.getElementById('bs-r').value) / 100,
-    sigma: sig,
-  };
-
-  try {
-    const res = await fetch('/api/blackscholes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    const d = await res.json();
-
-    document.getElementById('bs-call').textContent = '$' + d.call.toFixed(4);
-    document.getElementById('bs-put').textContent  = '$' + d.put.toFixed(4);
-
-    const mono = params.s0 / params.k;
-    
-    if (!sigma) msg = 'Chargez un ticker pour utiliser la volatilité historique réelle (σ = 20% par défaut).';
-    document.getElementById('bs-mono').textContent = msg;
-
-    drawPayoff(d.payoff_x, d.call_payoff, d.put_payoff);
-  } catch(e) { console.error(e); }
-}
-
-function drawPayoff(xs, callP, putP) {
-  if (payoffChart) payoffChart.destroy();
-  const ctx = document.getElementById('payoffChart').getContext('2d');
-  payoffChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: xs,
-      datasets: [
-        { label:'Call', data:callP, borderColor:'#2D5A3F', backgroundColor:'rgba(45,90,63,0.08)', borderWidth:2, pointRadius:0, tension:0.1, fill:true },
-        { label:'Put',  data:putP,  borderColor:'#7A1A1A', backgroundColor:'rgba(122,26,26,0.07)', borderWidth:2, pointRadius:0, tension:0.1, fill:true },
-      ],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: d => '$' + d.raw.toFixed(2) } } },
-      scales: {
-        x: { ticks: { maxTicksLimit: 9, callback: v => '$' + v }, grid: { color: 'rgba(120,110,90,0.08)' } },
-        y: { ticks: { callback: v => '$' + v },                   grid: { color: 'rgba(120,110,90,0.08)' } },
-      },
-    },
-  });
-}
-
-// ════════════════════════════════════════════════
-// MONTE CARLO
-// ════════════════════════════════════════════════
-async function runMC() {
-  const btn = document.getElementById('mc-btn');
-  btn.disabled  = true;
-  btn.innerHTML = '<span class="spin"></span>Simulation en cours...';
-
-  const params = {
-    s0:    parseFloat(document.getElementById('mc-s0').value),
-    k:     parseFloat(document.getElementById('mc-k').value),
-    t:     parseFloat(document.getElementById('mc-t').value),
-    r:     parseFloat(document.getElementById('mc-r').value) / 100,
-    sigma: sigma || 0.20,
-    n:     parseInt(document.getElementById('mc-n').value),
-  };
-
-  try {
-    const res = await fetch('/api/montecarlo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    const d = await res.json();
-
-    document.getElementById('mc-call').textContent    = '$' + d.mc_call.toFixed(4);
-    document.getElementById('mc-put').textContent     = '$' + d.mc_put.toFixed(4);
-    document.getElementById('mc-bs-call').textContent = '$' + d.bs_call.toFixed(4);
-    document.getElementById('mc-bs-put').textContent  = '$' + d.bs_put.toFixed(4);
-    document.getElementById('mc-err-c').textContent   = d.err_call.toFixed(5);
-    document.getElementById('mc-err-p').textContent   = d.err_put.toFixed(5);
-
-    drawHistogram(d.hist_x, d.hist_y);
-  } catch(e) { console.error(e); }
-
-  btn.disabled  = false;
-  btn.innerHTML = '&#9654; Lancer la simulation';
-}
-
-function drawHistogram(xs, ys) {
-  if (mcHistChart) mcHistChart.destroy();
-  const ctx = document.getElementById('mcHistChart').getContext('2d');
-  mcHistChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: xs,
-      datasets: [{ label: 'Fréquence', data: ys, backgroundColor: 'rgba(26,53,96,0.45)', borderColor: '#1A3560', borderWidth: 0.5 }],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { maxTicksLimit: 10, callback: v => '$' + v }, grid: { color: 'rgba(120,110,90,0.07)' } },
-        y: { grid: { color: 'rgba(120,110,90,0.07)' } },
-      },
-    },
-  });
-}
-
-// ════════════════════════════════════════════════
-// CONVERGENCE
-// ════════════════════════════════════════════════
-async function runConv() {
-  const btn = document.getElementById('cv-btn');
-  btn.disabled  = true;
-  btn.innerHTML = '<span class="spin"></span>Calcul en cours (quelques secondes)...';
-
-  const params = {
-    s0:    parseFloat(document.getElementById('cv-s0').value),
-    k:     parseFloat(document.getElementById('cv-k').value),
-    t:     parseFloat(document.getElementById('cv-t').value),
-    sigma: sigma || 0.20,
-  };
-
-  try {
-    const res  = await fetch('/api/convergence', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    const data = await res.json();
-    const rows = data.rows;
-
-    // Call table
-    document.getElementById('cv-tbody-call').innerHTML = rows.map(r => `
-      <tr>
-        <td><strong>${r.N}</strong></td>
-        <td class="num c-bs">$${r.bs_call}</td>
-        <td class="num c-mc">$${r.mc_call}</td>
-        <td class="num c-euler">$${r.euler_call}</td>
-        <td class="num c-milst">$${r.milst_call}</td>
-        <td class="num c-gold">${r.err_mc}</td>
-        <td class="num c-gold">${r.err_euler}</td>
-        <td class="num c-gold">${r.err_milst}</td>
-      </tr>`).join('');
-
-    // Put table
-    document.getElementById('cv-tbody-put').innerHTML = rows.map(r => `
-      <tr>
-        <td><strong>${r.N}</strong></td>
-        <td class="num c-bs">$${r.bs_put}</td>
-        <td class="num c-mc">$${r.mc_put}</td>
-        <td class="num c-euler">$${r.euler_put}</td>
-        <td class="num c-milst">$${r.milst_put}</td>
-        <td class="num c-gold">${r.err_mc_put}</td>
-        <td class="num c-gold">${r.err_euler_put}</td>
-        <td class="num c-gold">${r.err_milst_put}</td>
-      </tr>`).join('');
-
-    // Chart
-    if (convChart) convChart.destroy();
-    const ctx = document.getElementById('convChart').getContext('2d');
-    convChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: rows.map(r => r.N),
-        datasets: [
-          { label: 'Euler',       data: rows.map(r => r.err_euler), borderColor: '#5CB88A', borderWidth: 2, pointRadius: 5, tension: 0.3, fill: false },
-          { label: 'Milstein',    data: rows.map(r => r.err_milst), borderColor: '#4A9AB0', borderWidth: 2, pointRadius: 5, tension: 0.3, fill: false, borderDash: [5,3] },
-          { label: 'Monte Carlo', data: rows.map(r => r.err_mc),    borderColor: '#6090D0', borderWidth: 2, pointRadius: 5, tension: 0.3, fill: false, borderDash: [2,4] },
-          { label: 'BS (ref=0)',  data: rows.map(() => 0),          borderColor: '#C9A84C', borderWidth: 1.5, pointRadius: 0, fill: false, borderDash: [3,5] },
-        ],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: d => d.dataset.label + ' err: ' + d.raw } } },
-        scales: {
-          x: { title: { display: true, text: 'N (pas de discrétisation)', font: { size: 11 } }, grid: { color: 'rgba(120,110,90,0.07)' } },
-          y: { title: { display: true, text: 'Erreur absolue ($) vs BS',  font: { size: 11 } }, grid: { color: 'rgba(120,110,90,0.07)' } },
-        },
-      },
-    });
-
-  } catch(e) { console.error(e); }
-
-  btn.disabled  = false;
-  btn.innerHTML = '&#9654; Calculer la convergence Faible';
-}
-// ════════════════════════════════════════════════
-// CONVERGENCE FORTE
-// ════════════════════════════════════════════════
-let convForteChart = null;
-
-async function runConvForte() {
-  const btn = document.getElementById('cvf-btn');
-  btn.disabled  = true;
-  btn.innerHTML = '<span class="spin"></span>Calcul en cours...';
-
-  const params = {
-    s0:    parseFloat(document.getElementById('cv-s0').value),
-    t:     parseFloat(document.getElementById('cv-t').value),
-    sigma: sigma || 0.20,
-  };
-
-  try {
-    const res  = await fetch('/api/convergence_forte', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    const data = await res.json();
-    const rows = data.rows;
-
-    if (convForteChart) convForteChart.destroy();
-    const ctx = document.getElementById('convForteChart').getContext('2d');
-    convForteChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: rows.map(r => r.N),
-        datasets: [
-          {
-            label: 'Euler',
-            data:  rows.map(r => r.err_euler),
-            borderColor: '#5CB88A', backgroundColor: 'rgba(92,184,138,0.08)',
-            borderWidth: 2, pointRadius: 6, pointBackgroundColor: '#5CB88A',
-            tension: 0.3, fill: false,
-          },
-          {
-            label: 'Milstein',
-            data:  rows.map(r => r.err_milst),
-            borderColor: '#4A9AB0', backgroundColor: 'rgba(74,154,176,0.08)',
-            borderWidth: 2, pointRadius: 6, pointBackgroundColor: '#4A9AB0',
-            tension: 0.3, fill: false, borderDash: [5, 3],
-          },
-        ],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: d => d.dataset.label + ' — E[|err|]: ' + d.raw } },
-        },
-        scales: {
-          x: { title: { display: true, text: 'N (pas de discrétisation)', font: { size: 11 } }, grid: { color: 'rgba(120,110,90,0.07)' } },
-          y: { title: { display: true, text: 'E[|S_N − S_exact|]',        font: { size: 11 } }, grid: { color: 'rgba(120,110,90,0.07)' } },
-        },
-      },
-    });
-
-  } catch(e) { console.error(e); }
-
-  btn.disabled  = false;
-  btn.innerHTML = '&#9654; Calculer la convergence forte';
-}
-// ════════════════════════════════════════════════
-// ML — TRAIN
-// ════════════════════════════════════════════════
-async function trainML() {
-  const btn = document.getElementById('ml-train-btn');
-  btn.disabled  = true;
-  btn.innerHTML = '<span class="spin"></span>Entraînement en cours (~15s)...';
-
-  const n = parseInt(document.getElementById('ml-n').value);
-
-  try {
-    const res  = await fetch('/api/ml/train', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ n_samples: n }),
-    });
-    const d = await res.json();
-    if (d.error) throw new Error(d.error);
-
-    const maxImp = Math.max(...d.importances);
-    document.getElementById('ml-importances').innerHTML = d.features.map((f, i) => {
-      const pct = (d.importances[i] / d.importances.reduce((a,b)=>a+b,0) * 100).toFixed(1);
-      const w   = (d.importances[i] / maxImp * 100).toFixed(1);
-      return `
-        <div class="import-bar-row">
-          <div class="import-bar-lbl">${f}</div>
-          <div class="import-bar-track"><div class="import-bar-fill" style="width:${w}%"></div></div>
-          <div class="import-bar-pct">${pct}%</div>
-        </div>`;
-    }).join('');
-
-    // Feature importance chart
-    document.getElementById('ml-chart-section').style.display = 'block';
-    if (mlImportChart) mlImportChart.destroy();
-    const ctx = document.getElementById('mlImportChart').getContext('2d');
-    mlImportChart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: d.features,
-        datasets: [{
-          label: 'Importance',
-          data:  d.importances.map(v => parseFloat((v * 100).toFixed(2))),
-          backgroundColor: ['rgba(201,168,76,0.6)','rgba(26,53,96,0.55)','rgba(45,90,63,0.55)','rgba(107,58,26,0.55)','rgba(26,85,96,0.55)'],
-          borderColor:     ['#C9A84C','#1A3560','#2D5A3F','#6B3A1A','#1A5560'],
-          borderWidth: 1,
-        }],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: d => d.raw.toFixed(2) + '%' } } },
-        scales: {
-          x: { title: { display: true, text: 'Importance (%)', font: { size: 10 } }, grid: { color: 'rgba(120,110,90,0.07)' } },
-          y: { grid: { display: false } },
-        },
-      },
-    });
-
-    // Unlock prediction panel
-    mlReady = true;
-    document.getElementById('ml-train-ok').style.display      = 'block';
-    document.getElementById('ml-locked').style.display        = 'none';
-    document.getElementById('ml-predict-section').style.display = 'block';
-
-    // Sync vol / sliders if ticker already loaded
-    if (sigma) {
-      document.getElementById('ml-vbox').innerHTML =
-        `<strong>σ = ${(sigma*100).toFixed(2)}%</strong> &nbsp;·&nbsp; Volatilité historique chargée depuis le ticker.`;
+  <meta charset="UTF-8">
+  <title>Options Pricer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f5f7;
+      color: #222;
+      margin: 0;
     }
-    if (s0) syncSliders(s0);
 
-  }catch(e) {
-    console.error('ML train error:', e);
-    alert('Erreur entraînement : ' + e.message);
-  }
-  btn.disabled  = false;
-  btn.innerHTML = '&#9654; Entraîner le modèle';
-}
+    header {
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+      padding: 15px 30px;
+    }
 
-// ════════════════════════════════════════════════
-// ML — PREDICT
-// ════════════════════════════════════════════════
-async function predictML() {
-  const btn = document.getElementById('ml-pred-btn');
-  btn.disabled  = true;
-  btn.innerHTML = '<span class="spin"></span>Prédiction...';
+    h1 { font-size: 20px; margin: 0; }
+    h2 { font-size: 15px; margin: 0 0 10px 0; }
+    h3 { font-size: 14px; margin: 25px 0 10px 0; }
 
-  const params = {
-    s0:    parseFloat(document.getElementById('ml-s0').value),
-    k:     parseFloat(document.getElementById('ml-k').value),
-    t:     parseFloat(document.getElementById('ml-t').value),
-    r:     parseFloat(document.getElementById('ml-r').value) / 100,
-    sigma: sigma || 0.20,
-  };
+    main {
+      padding: 20px;
+    }
 
-  try {
-    const res = await fetch('/api/ml/predict', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+    .carte {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .ligne {
+      display: flex;
+      gap: 20px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    label { font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+
+    input {
+      padding: 6px;
+      width: 100px;
+      border: 1px solid #bbb;
+      border-radius: 3px;
+    }
+
+    button {
+      background: #2c5282;
+      color: #fff;
+      border: none;
+      border-radius: 3px;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+    button:hover { background: #234469; }
+
+    /* Barre d'onglets */
+    nav { display: flex; gap: 4px; margin-bottom: 15px; }
+    nav button { background: #e2e5ea; color: #333; }
+    nav button.actif { background: #2c5282; color: #fff; }
+
+    /* Contenu des onglets */
+    .onglet {
+      display: none;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+    }
+    .onglet.actif { display: block; }
+
+    table { border-collapse: collapse; margin-top: 15px; width: 100%; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e5e5e5; font-size: 13px; }
+    th { background: #f4f5f7; }
+
+    .graphique { height: 300px; }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>Options Pricer</h1>
+  </header>
+
+  <main>
+
+    <section class="carte">
+      <h2>Données de marché</h2>
+      <div class="ligne">
+        <label>Ticker <input id="ticker" value="AAPL"></label>
+        <button id="btn-ticker">Charger</button>
+        <span id="info-ticker"></span>
+      </div>
+    </section>
+
+    <section class="carte">
+      <h2>Paramètres</h2>
+      <div class="ligne">
+        <label>S₀ <input id="s0" type="number" value="100"></label>
+        <label>Strike K <input id="k" type="number" value="100"></label>
+        <label>Maturité T (ans) <input id="t" type="number" value="1" step="0.1"></label>
+        <label>Taux r <input id="r" type="number" value="0.05" step="0.01"></label>
+        <label>Volatilité σ <input id="sigma" type="number" value="0.2" step="0.01"></label>
+      </div>
+    </section>
+
+    <nav>
+      <button data-onglet="prix" class="actif">Black-Scholes / Monte Carlo</button>
+      <button data-onglet="convergence">Convergence</button>
+      <button data-onglet="ml">ML Pricer</button>
+    </nav>
+
+    <!-- Onglet 1 : prix -->
+    <section id="prix" class="onglet actif">
+      <button id="btn-prix">Calculer</button>
+
+      <table>
+        <tr><th>Méthode</th><th>Call</th><th>Put</th></tr>
+        <tr><td>Black-Scholes</td><td id="bs-call">-</td><td id="bs-put">-</td></tr>
+        <tr><td>Monte Carlo</td><td id="mc-call">-</td><td id="mc-put">-</td></tr>
+      </table>
+
+      <h3>Payoff à l'échéance</h3>
+      <div class="graphique"><canvas id="graph-payoff"></canvas></div>
+
+      <h3>Distribution des prix terminaux (Monte Carlo)</h3>
+      <div class="graphique"><canvas id="graph-histogramme"></canvas></div>
+    </section>
+
+    <!-- Onglet 2 : convergence -->
+    <section id="convergence" class="onglet">
+      <button id="btn-convergence">Calculer la convergence</button>
+
+      <table id="table-convergence"></table>
+
+      <h3>Erreur forte : Euler vs Milstein</h3>
+      <div class="graphique"><canvas id="graph-convergence"></canvas></div>
+    </section>
+
+    <!-- Onglet 3 : machine learning -->
+    <section id="ml" class="onglet">
+      <button id="btn-entrainer">Entraîner le modèle</button>
+      <span id="info-rmse"></span>
+      <br><br>
+      <button id="btn-predire">Prédire avec les paramètres ci-dessus</button>
+
+      <table>
+        <tr><th>Méthode</th><th>Call</th><th>Put</th></tr>
+        <tr><td>ML (Gradient Boosting)</td><td id="ml-call">-</td><td id="ml-put">-</td></tr>
+        <tr><td>Black-Scholes</td><td id="ml-bs-call">-</td><td id="ml-bs-put">-</td></tr>
+      </table>
+    </section>
+
+  </main>
+
+  <script>
+    // ================= Utilitaires =================
+
+    const graphiques = {};   // garde les graphiques pour pouvoir les remplacer
+
+    function valeur(id) {
+      return parseFloat(document.getElementById(id).value);
+    }
+
+    function lireParametres() {
+      return {
+        s0: valeur("s0"),
+        k: valeur("k"),
+        t: valeur("t"),
+        r: valeur("r"),
+        sigma: valeur("sigma"),
+      };
+    }
+
+    async function appelerApi(url, donnees) {
+      const reponse = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(donnees),
+      });
+      return reponse.json();
+    }
+
+    function ecrire(id, nombre, decimales = 4) {
+      document.getElementById(id).textContent = nombre.toFixed(decimales);
+    }
+
+    function dessiner(idCanvas, type, labels, datasets) {
+      if (graphiques[idCanvas]) {
+        graphiques[idCanvas].destroy();
+      }
+      graphiques[idCanvas] = new Chart(document.getElementById(idCanvas), {
+        type: type,
+        data: { labels: labels, datasets: datasets },
+        options: { responsive: true, maintainAspectRatio: false },
+      });
+    }
+
+
+    // ================= Onglets =================
+
+    function afficherOnglet(nom) {
+      document.querySelectorAll(".onglet").forEach(onglet => {
+        onglet.classList.toggle("actif", onglet.id === nom);
+      });
+      document.querySelectorAll("nav button").forEach(bouton => {
+        bouton.classList.toggle("actif", bouton.dataset.onglet === nom);
+      });
+    }
+
+    document.querySelectorAll("nav button").forEach(bouton => {
+      bouton.addEventListener("click", () => afficherOnglet(bouton.dataset.onglet));
     });
-    const d = await res.json();
-    if (d.error) { alert(d.error); throw new Error(d.error); }
 
-    document.getElementById('ml-pred-price').textContent = '$' + d.ml_call.toFixed(4);
-    document.getElementById('ml-bs-price').textContent   = '$' + d.bs_call.toFixed(4);
-    document.getElementById('ml-err-abs').textContent    = d.err_abs_call.toFixed(5);
-    document.getElementById('ml-err-pct').textContent    = d.err_pct_call.toFixed(3) + '%';
-    document.getElementById('ml-pred-put').textContent   = '$' + d.ml_put.toFixed(4);
-    document.getElementById('ml-bs-put').textContent     = '$' + d.bs_put.toFixed(4);
-    document.getElementById('ml-err-abs-put').textContent = d.err_abs_put.toFixed(5);
-    document.getElementById('ml-err-pct-put').textContent = d.err_pct_put.toFixed(3) + '%';
-  } catch(e) { console.error(e); }
 
-  btn.disabled  = false;
-  btn.innerHTML = '&#9654; Prédire le prix';
-}
+    // ================= Ticker =================
 
-// ════════════════════════════════════════════════
-// INIT
-// ════════════════════════════════════════════════
-calcBS();
-</script>
+    async function chargerTicker() {
+      const symbole = document.getElementById("ticker").value;
+      const info = document.getElementById("info-ticker");
+
+      const reponse = await fetch("/api/ticker?ticker=" + symbole);
+      const donnees = await reponse.json();
+
+      if (!reponse.ok) {
+        info.textContent = donnees.error;
+        return;
+      }
+
+      document.getElementById("s0").value = donnees.prix.toFixed(2);
+      document.getElementById("k").value = Math.round(donnees.prix);
+      document.getElementById("sigma").value = donnees.volatilite.toFixed(3);
+      info.textContent = "Prix : " + donnees.prix.toFixed(2)
+        + " | Volatilité historique : " + (donnees.volatilite * 100).toFixed(1) + " %";
+    }
+
+
+    // ================= Onglet 1 : Black-Scholes / Monte Carlo =================
+
+    function dessinerPayoff(params) {
+      const prix = [], payoffCall = [], payoffPut = [];
+      const pas = params.s0 / 50;
+
+      for (let s = params.s0 * 0.5; s <= params.s0 * 1.5; s += pas) {
+        prix.push(s.toFixed(0));
+        payoffCall.push(Math.max(s - params.k, 0));
+        payoffPut.push(Math.max(params.k - s, 0));
+      }
+
+      dessiner("graph-payoff", "line", prix, [
+        { label: "Call", data: payoffCall, borderColor: "#2f855a", pointRadius: 0 },
+        { label: "Put", data: payoffPut, borderColor: "#c53030", pointRadius: 0 },
+      ]);
+    }
+
+    async function calculerPrix() {
+      const params = lireParametres();
+      const resultat = await appelerApi("/api/prix", params);
+
+      ecrire("bs-call", resultat.bs_call);
+      ecrire("bs-put", resultat.bs_put);
+      ecrire("mc-call", resultat.mc_call);
+      ecrire("mc-put", resultat.mc_put);
+
+      dessinerPayoff(params);
+      dessiner("graph-histogramme", "bar", resultat.hist_x, [
+        { label: "Fréquence", data: resultat.hist_y, backgroundColor: "#2c5282" },
+      ]);
+    }
+
+
+    // ================= Onglet 2 : Convergence =================
+
+    async function calculerConvergence() {
+      const lignes = await appelerApi("/api/convergence", lireParametres());
+
+      let html = `<tr>
+        <th>N</th><th>Faible Euler</th><th>Faible Milstein</th>
+        <th>Forte Euler</th><th>Forte Milstein</th></tr>`;
+
+      lignes.forEach(ligne => {
+        html += `<tr>
+          <td>${ligne.N}</td>
+          <td>${ligne.faible_euler.toFixed(4)}</td>
+          <td>${ligne.faible_milstein.toFixed(4)}</td>
+          <td>${ligne.forte_euler.toFixed(4)}</td>
+          <td>${ligne.forte_milstein.toFixed(4)}</td>
+        </tr>`;
+      });
+      document.getElementById("table-convergence").innerHTML = html;
+
+      dessiner("graph-convergence", "line", lignes.map(l => l.N), [
+        { label: "Euler", data: lignes.map(l => l.forte_euler), borderColor: "#c05621" },
+        { label: "Milstein", data: lignes.map(l => l.forte_milstein), borderColor: "#2c5282" },
+      ]);
+    }
+
+
+    // ================= Onglet 3 : ML =================
+
+    async function entrainerModele() {
+      const info = document.getElementById("info-rmse");
+      info.textContent = "Entraînement en cours...";
+
+      const rmse = await appelerApi("/api/ml/entrainer", {});
+      info.textContent = "RMSE call : " + rmse.call.toFixed(4)
+        + " | RMSE put : " + rmse.put.toFixed(4);
+    }
+
+    async function predireModele() {
+      const resultat = await appelerApi("/api/ml/predire", lireParametres());
+
+      if (resultat.error) {
+        alert(resultat.error);
+        return;
+      }
+
+      ecrire("ml-call", resultat.ml_call);
+      ecrire("ml-put", resultat.ml_put);
+      ecrire("ml-bs-call", resultat.bs_call);
+      ecrire("ml-bs-put", resultat.bs_put);
+    }
+
+
+    // ================= Boutons =================
+
+    document.getElementById("btn-ticker").addEventListener("click", chargerTicker);
+    document.getElementById("btn-prix").addEventListener("click", calculerPrix);
+    document.getElementById("btn-convergence").addEventListener("click", calculerConvergence);
+    document.getElementById("btn-entrainer").addEventListener("click", entrainerModele);
+    document.getElementById("btn-predire").addEventListener("click", predireModele);
+  </script>
+
 </body>
 </html>
